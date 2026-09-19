@@ -4,6 +4,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
 #include <Settings/ClassOverrides.h>
 
 #include "RequestParams.generated.h"
@@ -15,6 +16,15 @@ class FIGMA2UMG_API URequestParams : public  UObject
 	GENERATED_BODY()
 public:
 	URequestParams(const FObjectInitializer& ObjectInitializer);
+
+	UPROPERTY()
+	bool bImportLocalFile = false;
+
+	UPROPERTY(EditAnywhere, Category = "Local Figma", meta = (EditCondition = "bImportLocalFile", EditConditionHides, FilePathFilter = "Figma REST JSON (*.figma;*.json)|*.figma;*.json", ToolTip = "Select a downloaded Figma REST JSON file. Its Images folder must be beside it."))
+	FFilePath LocalFigmaFile;
+
+	UPROPERTY(EditAnywhere, Category = "Local Figma", meta = (EditCondition = "bImportLocalFile", EditConditionHides, FilePathFilter = "Figma REST JSON (*.figma;*.json)|*.figma;*.json", ToolTip = "Optional downloaded component libraries, each with its own Images folder."))
+	TArray<FFilePath> LocalLibraryFiles;
 
 	UPROPERTY(EditAnywhere, meta = (Category = "Figma", ToolTip = "A personal access token gives the holder access to an account through the API as if they were the user who generated the token. See https://www.figma.com/developers/api#authentication"))
 	FString AccessToken;

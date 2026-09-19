@@ -27,6 +27,7 @@ public:
 	virtual void AddPackages(TArray<UPackage*>& Packages) const override;
 
 	void SetFontFamily(const FString& InFontFamily);
+	const FString& GetFontFamily() const { return FontFamily; }
 
 	void AddFontRequest(FFontRequests& FontRequests);
 	void OnRawFontFileReceived(const FString& Variant, const TArray<uint8>& InRawData);

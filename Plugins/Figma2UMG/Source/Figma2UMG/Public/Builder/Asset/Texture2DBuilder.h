@@ -19,6 +19,7 @@ public:
 
 	void AddImageRequest(FImageRequests& ImageRequests);
 	void OnRawImageReceived(const TArray<uint8>& InRawData);
+	void SetLocalImage(const TArray<uint8>& InRawData, const FString& Filename);
 
 	const TObjectPtr<UTexture2D>& GetAsset() const;
 
@@ -28,5 +29,6 @@ protected:
 	TObjectPtr<UTexture2D> Asset = nullptr;
 
 	TArray<uint8> RawData;
+	FString LocalImageFilename;
 	FOnRawImageReceive::FDelegate OnRawImageReceivedCB;
 };

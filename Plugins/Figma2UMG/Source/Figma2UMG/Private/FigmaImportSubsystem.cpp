@@ -12,6 +12,12 @@
 
 UFigmaImporter* UFigmaImportSubsystem::Request(const TObjectPtr<URequestParams> InProperties, const FOnFigmaImportUpdateStatusCB& InRequesterCallback)
 {
+	// Both import tabs share font caches and override settings in this subsystem.
+	if (!Requests.IsEmpty())
+	{
+		InRequesterCallback.ExecuteIfBound(eRequestStatus::Failed, TEXT("A Figma import is already running. Wait for it to finish."));
+		return nullptr;
+	}
 	UFigmaImporter* request = Requests.Emplace_GetRef(NewObject<UFigmaImporter>());
 	WidgetOverrides = &InProperties->WidgetOverrides;
 	FrameToButtonOverride = &InProperties->FrameToButton;

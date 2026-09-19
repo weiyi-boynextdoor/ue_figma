@@ -22,6 +22,7 @@ void UTexture2DBuilder::LoadOrCreateAssets()
 	URawTexture2DFactory* Factory = NewObject<URawTexture2DFactory>(URawTexture2DFactory::StaticClass());
 	Factory->DownloadSubFolder = Node->GetFigmaFile()->GetFileName() + TEXT("/Images");
 	Factory->RawData = RawData;
+	Factory->LocalSourceFilename = LocalImageFilename;
 
 	UTexture2D* TextureAsset = Cast<UTexture2D>(Asset);
 	if (TextureAsset == nullptr)
@@ -85,6 +86,7 @@ void UTexture2DBuilder::LoadAssets()
 void UTexture2DBuilder::Reset()
 {
 	Asset = nullptr;
+	LocalImageFilename.Reset();
 	if (OnRawImageReceivedCB.IsBound())
 	{
 		OnRawImageReceivedCB.Unbind();
@@ -137,6 +139,12 @@ void UTexture2DBuilder::AddImageRequest(FImageRequests& ImageRequests)
 void UTexture2DBuilder::OnRawImageReceived(const TArray<uint8>& InRawData)
 {
 	RawData = InRawData;
+}
+
+void UTexture2DBuilder::SetLocalImage(const TArray<uint8>& InRawData, const FString& Filename)
+{
+	RawData = InRawData;
+	LocalImageFilename = Filename;
 }
 
 const TObjectPtr<UTexture2D>& UTexture2DBuilder::GetAsset() const

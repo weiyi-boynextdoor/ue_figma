@@ -13,9 +13,11 @@ class FIGMA2UMG_API SImporterWidget : public SCompoundWidget, public FNotifyHook
 {
 public:
 	SLATE_BEGIN_ARGS(SImporterWidget)
+		: _ImportLocalFile(false)
 		{
 		}
 
+		SLATE_ARGUMENT(bool, ImportLocalFile)
 	SLATE_END_ARGS()
 
 	SImporterWidget();

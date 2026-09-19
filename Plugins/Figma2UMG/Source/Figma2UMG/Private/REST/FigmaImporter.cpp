@@ -22,6 +22,9 @@
 #include "Misc/SlowTaskStack.h"
 #include "Parser/FigmaFile.h"
 #include "Misc/FileHelper.h"
+#include "Local/LocalFigmaFile.h"
+#include "ImageUtils.h"
+#include "Misc/PackageName.h"
 
 UFigmaImporter::UFigmaImporter(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -42,6 +45,12 @@ void UFigmaImporter::Init(const TObjectPtr<URequestParams> InProperties, const F
 {
 	AccessToken = InProperties->AccessToken;
 	FileKey = InProperties->FileKey;
+	bImportLocalFile = InProperties->bImportLocalFile;
+	LocalFilename = InProperties->LocalFigmaFile.FilePath;
+	for (const FFilePath& Library : InProperties->LocalLibraryFiles)
+	{
+		LocalLibraryFilenames.AddUnique(Library.FilePath);
+	}
 	if(!InProperties->Ids.IsEmpty())
 	{
 
@@ -52,7 +61,7 @@ void UFigmaImporter::Init(const TObjectPtr<URequestParams> InProperties, const F
 		}
 	}
 
-	for (FString Element : InProperties->LibraryFileKeys)
+	for (FString Element : bImportLocalFile ? TArray<FString>() : InProperties->LibraryFileKeys)
 	{
 		LibraryFileKeys.Add(Element);
 	}
@@ -64,7 +73,7 @@ void UFigmaImporter::Init(const TObjectPtr<URequestParams> InProperties, const F
 	NodeImageScale = InProperties->NodeImageScale;
 	ProgressOnFailToDownloadImage = InProperties->ProgressOnFailToDownloadImage;
 
-	DownloadFontsFromGoogle = InProperties->DownloadFontsFromGoogle;
+	DownloadFontsFromGoogle = !bImportLocalFile && InProperties->DownloadFontsFromGoogle;
 	GFontsAPIKey = InProperties->GFontsAPIKey;
 
 	UsePrototypeFlow = InProperties->UsePrototypeFlow;
@@ -76,6 +85,11 @@ void UFigmaImporter::Run()
 {
 	int WorkCount = (LibraryFileKeys.Num() * 3/*Request, Parse, PostSerialization*/) + 3/*Request, Parse, PostSerialization*/ + 15;//Fix, Builders, Images, Fonts, Load/Create, Patch(WidgetBuilders,PreInsert+Compiling+Reloading+Binds+Properties), Post-patch
 	MainProgress.Start(WorkCount, NSLOCTEXT("Figma2UMG", "Figma2UMG_ImportProgress", "Importing from FIGMA"));
+	if (bImportLocalFile)
+	{
+		LoadLocalFiles();
+		return;
+	}
 	if(LibraryFileKeys.IsEmpty())
 	{
 		MainProgress.Update(1.0f, NSLOCTEXT("Figma2UMG", "Figma2UMG_RequestFile", "Downloading Design File."));
@@ -88,6 +102,103 @@ void UFigmaImporter::Run()
 	{
 		DownloadNextDependency();
 	}
+}
+
+bool UFigmaImporter::LoadLocalFile(const FString& Filename, TObjectPtr<UFigmaFile>& OutFile)
+{
+	TSharedPtr<FJsonObject> Json;
+	FString Error;
+	if (!LocalFigma::ReadDocument(Filename, Json, Error))
+	{
+		UpdateStatus(eRequestStatus::Failed, Error);
+		return false;
+	}
+	OutFile = NewObject<UFigmaFile>(this);
+	FText Reason;
+	if (!OutFile->Deserialize(Json.ToSharedRef(), Reason))
+	{
+		UpdateStatus(eRequestStatus::Failed, Filename + TEXT(": ") + Reason.ToString());
+		return false;
+	}
+	// Offline keys only identify files internally; component references resolve by component key.
+	OutFile->PostSerialize(Filename, ContentRootFolder, Json.ToSharedRef());
+	OutFile->SetImporter(this);
+	LocalImageDirectories.Add(OutFile.Get(), FPaths::Combine(FPaths::GetPath(Filename), TEXT("Images")));
+	return true;
+}
+
+void UFigmaImporter::LoadLocalFiles()
+{
+	check(IsInGameThread());
+	if (LocalFilename.IsEmpty())
+	{
+		UpdateStatus(eRequestStatus::Failed, TEXT("Select a local Figma file first."));
+		return;
+	}
+	if (!ContentRootFolder.StartsWith(TEXT("/Game/")) || !FPackageName::IsValidLongPackageName(ContentRootFolder))
+	{
+		UpdateStatus(eRequestStatus::Failed, TEXT("Content Root Folder must be a valid Unreal path such as /Game/Figma."));
+		return;
+	}
+	LocalFilename = FPaths::ConvertRelativePathToFull(LocalFilename);
+	FileKey = LocalFilename;
+	MainProgress.Update(1, NSLOCTEXT("Figma2UMG", "ReadLocalFile", "Reading local Figma files."));
+	for (const FString& LibraryFilename : LocalLibraryFilenames)
+	{
+		if (LibraryFilename.IsEmpty())
+		{
+			UpdateStatus(eRequestStatus::Failed, TEXT("Select a file for each local library entry, or remove empty entries."));
+			return;
+		}
+		const FString FullPath = FPaths::ConvertRelativePathToFull(LibraryFilename);
+		if (FullPath == LocalFilename || LibraryFileKeys.Contains(FullPath))
+			continue;
+		TObjectPtr<UFigmaFile>& Library = LibraryFileKeys.Add(FullPath);
+		if (!LoadLocalFile(FullPath, Library))
+			return;
+	}
+	if (LoadLocalFile(LocalFilename, File))
+	{
+		FixReferences();
+	}
+}
+
+void UFigmaImporter::LoadLocalImages()
+{
+	AsyncTask(ENamedThreads::GameThread, [this]()
+	{
+		MainProgress.Update(1, NSLOCTEXT("Figma2UMG", "ReadLocalImages", "Reading local images."));
+		for (const TScriptInterface<IAssetBuilder>& Builder : AssetBuilders)
+		{
+			UTexture2DBuilder* Texture = Cast<UTexture2DBuilder>(Builder.GetObject());
+			if (!Texture)
+				continue;
+			const UFigmaNode* Node = Texture->GetNode();
+			const FString* Directory = Node ? LocalImageDirectories.Find(Node->GetFigmaFile()) : nullptr;
+			if (!Directory)
+			{
+				UpdateStatus(eRequestStatus::Failed, TEXT("Cannot locate the source file for a local texture."));
+				return;
+			}
+			FString ImageFilename, Error;
+			if (!LocalFigma::FindImage(*Directory, Node->GetUAssetName(), Node->GetId(), ImageFilename, Error))
+			{
+				UpdateStatus(eRequestStatus::Failed, Error);
+				return;
+			}
+			TArray<uint8> RawData;
+			FImage Image;
+			if (!FFileHelper::LoadFileToArray(RawData, *ImageFilename) || RawData.IsEmpty()
+				|| !FImageUtils::DecompressImage(RawData.GetData(), RawData.Num(), Image))
+			{
+				UpdateStatus(eRequestStatus::Failed, TEXT("Cannot decode local image: ") + ImageFilename);
+				return;
+			}
+			Texture->SetLocalImage(RawData, ImageFilename);
+		}
+		// Existing project fonts are resolved by FontBuilder; offline mode never downloads fonts.
+		LoadOrCreateAssets();
+	});
 }
 
 bool UFigmaImporter::CreateRequest(const char* EndPoint, const FString& CurrentFileKey, const FString& RequestIds, const FHttpRequestCompleteDelegate& HttpRequestCompleteDelegate)
@@ -422,7 +533,10 @@ void UFigmaImporter::OnBuildersCreated(bool Succeeded)
 {
 	if (Succeeded)
 	{
-		BuildImageDependency();
+		if (bImportLocalFile)
+			LoadLocalImages();
+		else
+			BuildImageDependency();
 	}
 	else
 	{
@@ -831,8 +945,22 @@ void UFigmaImporter::LoadOrCreateAssets()
 			SubProgressImageDownload.Finish();
 
 			FGCScopeGuard GCScopeGuard;
+			TSet<FString> MissingLocalFonts;
 			for (TScriptInterface<IAssetBuilder>& AssetBuilder : AssetBuilders)
 			{
+				if (bImportLocalFile)
+				{
+					if (UFontBuilder* Font = Cast<UFontBuilder>(AssetBuilder.GetObject()))
+					{
+						Font->LoadAssets();
+						if (!Font->GetAsset() && !MissingLocalFonts.Contains(Font->GetFontFamily()))
+						{
+							MissingLocalFonts.Add(Font->GetFontFamily());
+							UE_LOG_Figma2UMG(Warning, TEXT("Local import: font %s is not installed in the project; text keeps its default font. Import the font asset to match the design."), *Font->GetFontFamily());
+						}
+						continue;
+					}
+				}
 				AssetBuilder->LoadOrCreateAssets();
 			}
 

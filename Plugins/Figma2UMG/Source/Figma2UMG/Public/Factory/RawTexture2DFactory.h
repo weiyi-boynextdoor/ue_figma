@@ -21,6 +21,9 @@ class URawTexture2DFactory : public UTextureFactory
 	FString DownloadSubFolder;
 
 	UPROPERTY()
+	FString LocalSourceFilename;
+
+	UPROPERTY()
 	TArray<uint8> RawData;
 
 	virtual bool ShouldShowInNewMenu() const override;

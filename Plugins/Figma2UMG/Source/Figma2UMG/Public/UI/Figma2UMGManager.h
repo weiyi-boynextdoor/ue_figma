@@ -17,11 +17,14 @@ public:
 private:
 	void SetupMenuItem();
 	void CreateWindow();
+	void CreateLocalWindow();
 
 	TSharedRef<SDockTab> CreateTab(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> CreateLocalTab(const FSpawnTabArgs& Args);
 
 	const FText TabDisplay = FText::FromString("Figma2UMG");
 	const FText ToolTip = FText::FromString("Launch Figma2UMG Importer");
 
 	TSharedPtr<SDockTab> ImporterDockTab;
+	TSharedPtr<SDockTab> LocalImporterDockTab;
 };

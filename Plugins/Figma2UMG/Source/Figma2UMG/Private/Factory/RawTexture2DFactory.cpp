@@ -40,7 +40,9 @@ UObject* URawTexture2DFactory::FactoryCreateNew(UClass* InClass, UObject* InPare
 	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
 	EImageFormat ImageFormat = ImageWrapperModule.DetectImageFormat(RawData.GetData(), RawData.Num());
 	const FString FileExtension = GetExtensionFromFormat(ImageFormat);
-	CurrentFilename = FPaths::ProjectContentDir() + TEXT("../Downloads/") + DownloadSubFolder + TEXT("/") + InName.ToString() + TEXT(".") + FileExtension;
+	CurrentFilename = LocalSourceFilename.IsEmpty()
+		? FPaths::ProjectContentDir() + TEXT("../Downloads/") + DownloadSubFolder + TEXT("/") + InName.ToString() + TEXT(".") + FileExtension
+		: LocalSourceFilename;
 
 	const int64 FileSize = IFileManager::Get().FileSize(*CurrentFilename);
 	const int32 Gigabyte = 1024 * 1024 * 1024;
@@ -49,7 +51,10 @@ UObject* URawTexture2DFactory::FactoryCreateNew(UClass* InClass, UObject* InPare
 		FileHash = FMD5Hash::HashFile(*CurrentFilename);
 	}
 
-	FFileHelper::SaveArrayToFile(RawData, *CurrentFilename);
+	if (LocalSourceFilename.IsEmpty())
+	{
+		FFileHelper::SaveArrayToFile(RawData, *CurrentFilename);
+	}
 
 	const uint8* Ptr = RawData.GetData();
 

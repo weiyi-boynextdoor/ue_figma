@@ -39,6 +39,12 @@ void SImporterWidget::Construct(const FArguments& InArgs)
 		Properties = NewObject<URequestParams>();
 		Properties->AddToRoot();
 	}
+	Properties->bImportLocalFile = InArgs._ImportLocalFile;
+	if (Properties->bImportLocalFile)
+	{
+		ImportButtonName = LOCTEXT("ImportLocalButtonName", "Import Local Figma File");
+		ImportButtonTooltip = LOCTEXT("ImportLocalButtonTooltip", "Create Unreal assets from the selected file and its Images folder. No access token is required.");
+	}
 
 	TSharedRef<SGridPanel> Content = SNew(SGridPanel).FillColumn(1, 1.0f);
 	TSharedRef<SBorder> MainContent = SNew(SBorder)
@@ -93,6 +99,24 @@ void SImporterWidget::AddPropertyView(TSharedRef<SGridPanel> Content)
 	DetailsViewArgs.bShowCustomFilterOption = false;
 
 	DetailViewWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	const bool bLocal = Properties->bImportLocalFile;
+	DetailViewWidget->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateLambda([bLocal](const FPropertyAndParent& Property)
+	{
+		const FName Name = Property.Property.GetFName();
+		if (bLocal && (Name == GET_MEMBER_NAME_CHECKED(URequestParams, AccessToken)
+			|| Name == GET_MEMBER_NAME_CHECKED(URequestParams, FileKey)
+			|| Name == GET_MEMBER_NAME_CHECKED(URequestParams, Ids)
+			|| Name == GET_MEMBER_NAME_CHECKED(URequestParams, LibraryFileKeys)
+			|| Name == GET_MEMBER_NAME_CHECKED(URequestParams, DownloadFontsFromGoogle)
+			|| Name == GET_MEMBER_NAME_CHECKED(URequestParams, GFontsAPIKey)
+			|| Name == GET_MEMBER_NAME_CHECKED(URequestParams, MaxURLImageRequest)
+			|| Name == GET_MEMBER_NAME_CHECKED(URequestParams, NodeImageScale)
+			|| Name == GET_MEMBER_NAME_CHECKED(URequestParams, ProgressOnFailToDownloadImage)))
+		{
+			return false;
+		}
+		return true;
+	}));
 	DetailViewWidget->SetObject(Properties);
 	if (DetailViewWidget.IsValid())
 	{
@@ -113,9 +137,10 @@ FReply SImporterWidget::DoImport()
 	UFigmaImportSubsystem* Importer = GEditor->GetEditorSubsystem<UFigmaImportSubsystem>();
 	if (Importer)
 	{
-		UE_LOG_Figma2UMG(Display, TEXT("Connecting with Figma"));
+		UE_LOG_Figma2UMG(Display, TEXT("%s"), Properties->bImportLocalFile ? TEXT("Importing local Figma file") : TEXT("Connecting with Figma"));
 		ImportButton->SetEnabled(false);
-		Importer->Request(Properties, FOnFigmaImportUpdateStatusCB::CreateRaw(this, &SImporterWidget::OnRequestFinished));
+		DetailViewWidget->SetEnabled(false);
+		Importer->Request(Properties, FOnFigmaImportUpdateStatusCB::CreateSP(this, &SImporterWidget::OnRequestFinished));
 	}
 
 	return FReply::Handled();
@@ -127,6 +152,7 @@ void SImporterWidget::OnRequestFinished(eRequestStatus Status, FString InMessage
 	if (Status == eRequestStatus::Succeeded || Status == eRequestStatus::Failed)
 	{
 		ImportButton->SetEnabled(true);
+		DetailViewWidget->SetEnabled(true);
 		if (IsError)
 		{
 			UE_LOG_Figma2UMG(Error, TEXT("%s"), *InMessage);

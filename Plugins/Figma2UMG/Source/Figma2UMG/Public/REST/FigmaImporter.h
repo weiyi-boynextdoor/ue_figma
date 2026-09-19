@@ -29,6 +29,9 @@ public:
 	TObjectPtr<BuilderT> FintAssetBuilderForNode(const FString& Id) const;
 
 protected:
+	void LoadLocalFiles();
+	bool LoadLocalFile(const FString& Filename, TObjectPtr<UFigmaFile>& OutFile);
+	void LoadLocalImages();
 	bool CreateRequest(const char* EndPoint, const FString& CurrentFileKey, const FString& RequestIds, const FHttpRequestCompleteDelegate& HttpRequestCompleteDelegate);
 	bool CreateRequest(const char* EndPoint, const FString& CurrentFileKey, const FString& RequestIds, const FString& Suffix, const FHttpRequestCompleteDelegate& HttpRequestCompleteDelegate);
 	void UpdateStatus(eRequestStatus Status, FString Message);
@@ -126,6 +129,10 @@ protected:
 	FProcessFinishedDelegate OnPostPatchUAssetsDelegate;
 
 	FString AccessToken;
+	bool bImportLocalFile = false;
+	FString LocalFilename;
+	TArray<FString> LocalLibraryFilenames;
+	TMap<const UFigmaFile*, FString> LocalImageDirectories;
 	FString FileKey;
 	FString Ids;
 	FString CurrentLibraryFileKey;

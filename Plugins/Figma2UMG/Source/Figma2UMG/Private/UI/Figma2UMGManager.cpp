@@ -11,6 +11,7 @@
 #define CONTENTBROWSER_MODULE_NAME TEXT("ContentBrowser")
 
 const FName ImporterTabName = "Figma2UMGTab";
+const FName LocalImporterTabName = "Figma2UMGLocalTab";
 
 FFigma2UMGManager::FFigma2UMGManager()
 {
@@ -35,7 +36,12 @@ void FFigma2UMGManager::Shutdown()
 	}
 
 	FFigma2UMGStyle::Shutdown();
+	if (LocalImporterDockTab.IsValid())
+	{
+		LocalImporterDockTab->RequestCloseTab();
+	}
 	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(ImporterTabName);
+	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(LocalImporterTabName);
 }
 
 void FFigma2UMGManager::SetupMenuItem()
@@ -59,6 +65,13 @@ void FFigma2UMGManager::SetupMenuItem()
 					FSlateIcon(FFigma2UMGStyle::GetStyleSetName(), "Figma2UMG.MenuLogo"),
 					FUIAction(FExecuteAction::CreateSP(WeakPtr.Pin().ToSharedRef(), &FFigma2UMGManager::CreateWindow), FCanExecuteAction())
 				);
+				InSection.AddMenuEntry(
+					"ImportLocalFigma",
+					LOCTEXT("OpenImportLocalFigmaFileText", "Import Local Figma File"),
+					LOCTEXT("GetImportLocalFigmaFileTooltip", "Create assets from a downloaded Figma file and local images, without a token."),
+					FSlateIcon(FFigma2UMGStyle::GetStyleSetName(), "Figma2UMG.MenuLogo"),
+					FUIAction(FExecuteAction::CreateSP(WeakPtr.Pin().ToSharedRef(), &FFigma2UMGManager::CreateLocalWindow))
+				);
 			}
 		}));
 
@@ -68,6 +81,26 @@ void FFigma2UMGManager::SetupMenuItem()
 		.SetDisplayName(TabDisplay)
 		.SetAutoGenerateMenuEntry(false)
 		.SetTooltipText(ToolTip);
+	FGlobalTabmanager::Get()->RegisterNomadTabSpawner(LocalImporterTabName,
+		FOnSpawnTab::CreateRaw(this, &FFigma2UMGManager::CreateLocalTab))
+		.SetDisplayName(LOCTEXT("LocalImporterTab", "Figma2UMG - Local Import"))
+		.SetAutoGenerateMenuEntry(false);
+}
+
+void FFigma2UMGManager::CreateLocalWindow()
+{
+	FGlobalTabmanager::Get()->TryInvokeTab(LocalImporterTabName);
+}
+
+TSharedRef<SDockTab> FFigma2UMGManager::CreateLocalTab(const FSpawnTabArgs& Args)
+{
+	SAssignNew(LocalImporterDockTab, SDockTab)
+		.OnTabClosed_Lambda([this](TSharedRef<SDockTab>) { LocalImporterDockTab = nullptr; })
+		.TabRole(ETabRole::NomadTab)
+		[
+			SNew(SImporterWidget).ImportLocalFile(true)
+		];
+	return LocalImporterDockTab.ToSharedRef();
 }
 
 void FFigma2UMGManager::CreateWindow()
