@@ -35,3 +35,6 @@ Desktop.ini
 # Local tooling caches
 .cache/
 .vsconfig.user
+
+# figma download path
+Downloads/
