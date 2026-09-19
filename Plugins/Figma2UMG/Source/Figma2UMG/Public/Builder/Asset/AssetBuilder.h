@@ -1,0 +1,46 @@
+// MIT License
+// Copyright (c) 2024 Buvi Games
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "AssetBuilder.generated.h"
+
+class UFigmaFile;
+class UFigmaNode;
+
+UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
+class FIGMA2UMG_API UAssetBuilder : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class FIGMA2UMG_API IAssetBuilder
+{
+	GENERATED_BODY()
+public:
+	UFUNCTION()
+	virtual void SetNode(const FString& InFileKey, const UFigmaNode* InNode);
+
+	UFUNCTION()
+	virtual const UFigmaNode* GetNode() const;
+
+	UFUNCTION()
+	virtual void LoadOrCreateAssets() = 0;
+
+	UFUNCTION()
+	virtual void LoadAssets() = 0;
+
+	UFUNCTION()
+	virtual UPackage* GetAssetPackage() const = 0;
+
+	UFUNCTION()
+	virtual void Reset() = 0;
+
+	UFUNCTION()
+	virtual void AddPackages(TArray<UPackage*>& Packages) const;
+
+protected:
+	FString FileKey;
+	const UFigmaNode* Node = nullptr;
+};

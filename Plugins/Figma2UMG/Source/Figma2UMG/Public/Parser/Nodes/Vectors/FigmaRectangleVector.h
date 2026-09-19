@@ -1,0 +1,30 @@
+// MIT License
+// Copyright (c) 2024 Buvi Games
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Parser/Nodes/Vectors/FigmaVectorNode.h"
+
+#include "FigmaRectangleVector.generated.h"
+
+UCLASS()
+class FIGMA2UMG_API UFigmaRectangleVector : public UFigmaVectorNode
+{
+public:
+	GENERATED_BODY()
+	virtual FVector2D GetAbsolutePosition(const bool IsTopWidgetForNode) const override;
+	virtual FVector2D GetAbsoluteSize(const bool IsTopWidgetForNode) const override;
+	virtual FVector2D GetAbsoluteCenter() const override;
+
+	virtual bool CreateAssetBuilder(const FString& InFileKey, TArray<TScriptInterface<IAssetBuilder>>& AssetBuilders) override;
+	virtual TScriptInterface<IWidgetBuilder> CreateWidgetBuilders(bool IsRoot = false, bool AllowFrameButton = true) const override;
+
+	virtual bool DoesSupportImageRef() const override;
+
+	UPROPERTY()
+	TArray<float> RectangleCornerRadii;
+
+	UPROPERTY()
+	float CornerSmoothing;
+};

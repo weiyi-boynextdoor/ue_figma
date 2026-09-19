@@ -1,0 +1,30 @@
+{
+	"FileVersion": 3,
+	"Version": 1.4,
+	"VersionName": "2025.1.5",
+	"FriendlyName": "Figma2UMG",
+	"Description": "Figma importer",
+	"Category": "Editor",
+	"CreatedBy": "Buvi Games",
+	"CreatedByURL": "https://www.buvi.games/",
+	"DocsURL": "https://www.buvi.games/figma2umg",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/d1c6a5ba1f814d4b939c06a1c67a0dc2",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "Figma2UMG",
+			"Type": "Editor",
+			"LoadingPhase": "PostDefault",
+			"PlatformAllowList": [
+				"Win64",
+				"Mac",
+				"Linux"
+			]
+		}
+	],
+	"Sealed": true
+}
