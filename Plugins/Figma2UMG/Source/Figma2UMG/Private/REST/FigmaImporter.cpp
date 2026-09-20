@@ -9,6 +9,7 @@
 #include "FigmaImportSubsystem.h"
 #include "FileHelpers.h"
 #include "HttpModule.h"
+#include "HAL/PlatformMisc.h"
 #include "JsonObjectConverter.h"
 #include "REST/RequestParams.h"
 #include "Async/Async.h"
@@ -44,6 +45,10 @@ UFigmaImporter::UFigmaImporter(const FObjectInitializer& ObjectInitializer)
 void UFigmaImporter::Init(const TObjectPtr<URequestParams> InProperties, const FOnFigmaImportUpdateStatusCB& InRequesterCallback)
 {
 	AccessToken = InProperties->AccessToken;
+	if (AccessToken.IsEmpty())
+	{
+		AccessToken = FPlatformMisc::GetEnvironmentVariable(TEXT("FIGMA_ACCESS_TOKEN"));
+	}
 	FileKey = InProperties->FileKey;
 	bImportLocalFile = InProperties->bImportLocalFile;
 	LocalFilename = InProperties->LocalFigmaFile.FilePath;
