@@ -38,3 +38,5 @@ Desktop.ini
 
 # figma download path
 Downloads/
+
+*.pyc
