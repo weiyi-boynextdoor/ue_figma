@@ -40,3 +40,5 @@ Desktop.ini
 Downloads/
 
 *.pyc
+
+.ue_source_path
